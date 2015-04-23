@@ -1,0 +1,222 @@
+class PostalWorker{
+	
+	int num;
+	
+	Semaphore max_capacity;
+	Semaphore service_counter;
+	Semaphore cust_ready;
+	ArrayList<Semaphore> service_finished;
+	Semaphore leave_counter;
+	Semaphore mutex1;
+	Semaphore mutex3;
+	
+	int customer_id;
+	int customer_service;
+	
+	PostalWorker(int num, Semaphore max_capacity, Semaphore service_counter, Semaphore cust_ready,ArrayList<Semaphore> service_finished, Semaphore leave_counter, Semaphore mutex1,Semaphore mutex3){
+		//Constructor
+	}
+
+
+	run() {
+		while(true){
+			
+				cust_ready.acquire();
+				mutex1.acquire();
+				this.customer_id=Postoffice.cust_id;
+				this.customer_service=Postoffice.cust_service;
+				mutex3.release();
+				mutex1.release();
+				Thread.sleep(Postoffice.serviceSleep(this.customer_service));
+				service_finished.get(this.customer_id).release();
+				leave_counter.acquire();
+				service_counter.release();
+		}
+		
+	}
+	
+}
+
+
+
+
+
+
+
+class Customer{
+	
+	int num;
+	int cust_type;
+
+	Semaphore max_capacity;
+	Semaphore service_counter;
+	Semaphore cust_ready;
+	ArrayList<Semaphore> service_finished;
+	Semaphore leave_counter;
+	Semaphore mutex1;
+	Semaphore mutex2;
+	Semaphore mutex3;
+	Semaphore scales;
+	
+	Customer(int num, Semaphore max_capacity, Semaphore service_counter, Semaphore cust_ready,ArrayList<Semaphore> service_finished, Semaphore leave_counter, Semaphore mutex1,Semaphore mutex2,Semaphore mutex3,Semaphore scales){
+		//Constructor
+	}
+
+	
+	run() {
+			max_capacity.acquire();
+			Thread.sleep(Postoffice.serviceSleep(0)*(num+1));
+			service_counter.acquire();
+			scales.release();	
+		
+			scales.acquire();
+			mutex2.acquire();
+			mutex1.acquire();
+			Postoffice.cust_id=this.num;
+			Postoffice.cust_service=this.cust_type;
+		
+			cust_ready.release();
+		
+			mutex1.release();
+		
+			mutex3.acquire();
+			mutex2.release();
+		
+			service_finished.get(this.num).acquire();
+			leave_counter.release();
+		
+			max_capacity.release();	
+		
+	}
+}
+
+
+
+class Postoffice{
+	
+	
+	public static int cust_id;
+	public static int cust_service;
+	
+	main(){
+		
+		final int No_customers=50;
+		final int No_max_capacity=10;
+		final int No_postal_workers=3;
+		int i=0;
+		
+		Semaphore max_capacity=new Semaphore(No_max_capacity,true);
+		Semaphore service_counter=new Semaphore(No_postal_workers,true);
+		Semaphore cust_ready=new Semaphore(0,true);
+		Semaphore scales=new Semaphore(1,true);
+		
+		ArrayList<Semaphore> service_finished=new ArrayList<>();
+		
+		for(int j=0;j<No_customers;j++){
+			service_finished.add(j, new Semaphore(0,true));
+			}
+		Semaphore leave_counter=new Semaphore (0,true);
+		
+		Semaphore mutex1=new Semaphore(3,true);
+		Semaphore mutex2=new Semaphore(1,true);
+		Semaphore mutex3=new Semaphore(0,true);
+		
+		PostalWorker pw[]=new PostalWorker[No_postal_workers];
+		Thread PostalThreads[]=new Thread[No_postal_workers];
+		
+		Customer cth[]=new Customer[No_customers];
+		Thread customerThreads[]=new Thread[No_customers];
+		
+		for(i=0;i<No_postal_workers;++i){
+			
+			pw[i]=new PostalWorker(i, max_capacity, service_counter, cust_ready, service_finished, leave_counter,mutex1,mutex3);
+			
+			PostalThreads[i]=new Thread(pw[i]);
+			PostalThreads[i].start();
+		}
+		
+		
+		for(i=0;i<No_customers;++i){
+			
+			cth[i]=new Customer(i,max_capacity, service_counter, cust_ready, service_finished, leave_counter,mutex1,mutex2,mutex3,scales);
+			customerThreads[i]=new Thread(cth[i]);
+			customerThreads[i].start();
+		}
+		
+		
+		for(i=0;i<No_customers;++i){
+			
+				customerThreads[i].join();
+				System.out.println("Joined Customer"+i+".");
+			
+		}
+		
+		System.exit(0);
+		
+		
+		
+	}
+	
+	
+	public static String serviceDisplay(int s)
+	{
+		
+			switch(s)
+			{
+				case 1: return "to buy stamps";
+				
+				case 2: return "to mail a letter";
+				
+				case 3: return "to mail a package";
+				
+				
+			}
+			return null;	
+	
+	
+
+}
+	
+	public static String serviceend(int s)
+	{
+		
+			switch(s)
+			{
+				case 1: return "buying stamps";
+				
+				case 2: return "mailing a letter";
+				
+				case 3: return "mailing a package";
+				
+				
+			}
+			return null;	
+	
+	
+
+}
+	
+	
+	public static int serviceSleep(int s)
+	{
+		switch(s)
+		{
+			case 0: return 500;  // This is the arrival rate of customers.
+			
+			case 1: return 1000; // This is buying stamps.
+				
+			case 2: return 1500; // This is mailing a letter.
+			
+			case 3: return 2000; // This is mailing a package.
+			
+		}
+		
+		return 10000; // This is the default sleep which will portray an error in the system.
+	}
+	
+	}
+
+
+
+
+
